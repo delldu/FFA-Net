@@ -3,8 +3,10 @@ import torch
 
 def default_conv(in_channels, out_channels, kernel_size, bias=True):
     return nn.Conv2d(in_channels, out_channels, kernel_size,padding=(kernel_size//2), bias=bias)
-    
+
 class PALayer(nn.Module):
+    '''Pixel Attention. '''
+
     def __init__(self, channel):
         super(PALayer, self).__init__()
         self.pa = nn.Sequential(
@@ -18,6 +20,8 @@ class PALayer(nn.Module):
         return x * y
 
 class CALayer(nn.Module):
+    '''Channel Attention. '''
+
     def __init__(self, channel):
         super(CALayer, self).__init__()
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
@@ -41,6 +45,7 @@ class Block(nn.Module):
         self.conv2=conv(dim,dim,kernel_size,bias=True)
         self.calayer=CALayer(dim)
         self.palayer=PALayer(dim)
+
     def forward(self, x):
         res=self.act1(self.conv1(x))
         res=res+x 
@@ -49,12 +54,14 @@ class Block(nn.Module):
         res=self.palayer(res)
         res += x 
         return res
+
 class Group(nn.Module):
     def __init__(self, conv, dim, kernel_size, blocks):
         super(Group, self).__init__()
         modules = [ Block(conv, dim, kernel_size)  for _ in range(blocks)]
         modules.append(conv(dim, dim, kernel_size))
         self.gp = nn.Sequential(*modules)
+
     def forward(self, x):
         res = self.gp(x)
         res += x
@@ -66,6 +73,7 @@ class FFA(nn.Module):
         self.gps=gps
         self.dim=64
         kernel_size=3
+
         pre_process = [conv(3, self.dim, kernel_size)]
         assert self.gps==3
         self.g1= Group(conv, self.dim, kernel_size,blocks=blocks)
@@ -98,6 +106,7 @@ class FFA(nn.Module):
         out=self.palayer(out)
         x=self.post(out)
         return x + x1
+
 if __name__ == "__main__":
-    net=FFA(gps=3,blocks=19)
+    net=FFA(gps=3, blocks=19)
     print(net)
