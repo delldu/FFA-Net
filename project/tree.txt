@@ -1,0 +1,19 @@
+.
+├── data.py
+├── dataset
+│   ├── predict
+│   │   ├── clean
+│   │   └── haze
+│   ├── test
+│   │   ├── clean
+│   │   └── haze
+│   └── train
+│       ├── clean
+│       └── haze
+├── model.py
+├── predict.py
+├── readme.md
+├── test.py
+└── train.py
+
+10 directories, 6 files
