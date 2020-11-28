@@ -1,4 +1,5 @@
-"""Create model."""# coding=utf-8
+"""Create model."""
+# coding=utf-8
 #
 # /************************************************************************************
 # ***
@@ -9,23 +10,17 @@
 # ************************************************************************************/
 #
 
+import math
 import os
 import sys
-import math
+import pdb
+
 import torch
 import torch.nn as nn
 from tqdm import tqdm
+from apex import amp
 
-class ImageDehazeModel(nn.Module):
-    """ImageDehaze Model."""
-
-    def __init__(self):
-        """Init model."""
-        super(ImageDehazeModel, self).__init__()
-
-    def forward(self, x):
-        """Forward."""
-        return x
+from model_helper import ImageDehazeModel
 
 def model_load(model, path):
     """Load model."""
@@ -33,9 +28,13 @@ def model_load(model, path):
         print("Model '{}' does not exist.".format(path))
         return
 
-    state_dict = torch.load(path, map_location=lambda storage, loc: storage)
+    pdb.set_trace()
+    source_state_dict = torch.load(path, map_location=lambda storage, loc: storage)
+    source_state_dict = source_state_dict['model']
+
     target_state_dict = model.state_dict()
-    for n, p in state_dict.items():
+    for n, p in source_state_dict.items():
+        n = n.replace('module.', '')
         if n in target_state_dict.keys():
             target_state_dict[n].copy_(p)
         else:
@@ -44,7 +43,8 @@ def model_load(model, path):
 
 def model_save(model, path):
     """Save model."""
-    torch.save(model.state_dict(), path)
+    torch.save(model.source_state_dict(), path)
+
 
 def export_onnx_model():
     """Export onnx model."""
@@ -52,8 +52,8 @@ def export_onnx_model():
     import onnx
     from onnx import optimizer
 
-    onnx_file = "output/model.onnx"
-    weight_file = "output/model.pth"
+    onnx_file = "models/image_dehaze.onnx"
+    weight_file = "models/ImageDehaze.pth"
 
     # 1. Load model
     print("Loading model ...")
@@ -66,10 +66,9 @@ def export_onnx_model():
     dummy_input = torch.randn(1, 3, 512, 512)
 
     input_names = ["input"]
-    output_names = ["noise_level", "output"]
+    output_names = ["output"]
     # variable lenght axes
     dynamic_axes = {'input': {0: 'batch_size', 1: 'channel', 2: "height", 3: 'width'},
-                    'noise_level': {0: 'batch_size', 1: 'channel', 2: "height", 3: 'width'},
                     'output': {0: 'batch_size', 1: 'channel', 2: "height", 3: 'width'}}
     torch.onnx.export(model, dummy_input, onnx_file,
                       input_names=input_names,
@@ -98,8 +97,8 @@ def export_onnx_model():
 def export_torch_model():
     """Export torch model."""
 
-    script_file = "output/model.pt"
-    weight_file = "output/model.pth"
+    script_file = "models/image_dehaze.pt"
+    weight_file = "models/ImageDehaze.pth"
 
     # 1. Load model
     print("Loading model ...")
@@ -117,7 +116,7 @@ def export_torch_model():
 def get_model():
     """Create model."""
     model_setenv()
-    model = ImageDehazeModel()
+    model = ImageDehazeModel(gps=3, blocks=19)
     return model
 
 
@@ -270,11 +269,9 @@ def enable_amp(x):
 
 def infer_perform():
     """Model infer performance ..."""
-
-    model_setenv()
+    model = get_model()
     device = model_device()
 
-    model = ImageDehazeModel()
     model.eval()
     model = model.to(device)
     enable_amp(model)
@@ -283,8 +280,7 @@ def infer_perform():
     progress_bar.set_description("Test Inference Performance ...")
 
     for i in range(100):
-        # xxxx--modify here
-        input = torch.randn(64, 3, 512, 512)
+        input = torch.randn(8, 3, 512, 512)
         input = input.to(device)
 
         with torch.no_grad():
@@ -299,7 +295,7 @@ if __name__ == '__main__':
     model = get_model()
     print(model)
 
-    export_torch_model()
-    export_onnx_model()
+    # export_torch_model()
+    # export_onnx_model()
 
     infer_perform()

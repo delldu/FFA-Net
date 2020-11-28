@@ -1,4 +1,4 @@
-"""Model predict."""# coding=utf-8
+"""Model predict."""  # coding=utf-8
 #
 # /************************************************************************************
 # ***
@@ -8,23 +8,25 @@
 # ***
 # ************************************************************************************/
 #
-import os
-import glob
 import argparse
+import glob
+import os
+
 import torch
 import torchvision.transforms as transforms
 from PIL import Image
-from model import get_model, model_load, enable_amp, model_device
 from tqdm import tqdm
+
+from model import enable_amp, get_model, model_device, model_load
 
 if __name__ == "__main__":
     """Predict."""
 
-    model_setenv()
-
     parser = argparse.ArgumentParser()
-    parser.add_argument('--checkpoint', type=str, default="output/ImageDehaze.pth", help="checkpint file")
-    parser.add_argument('--input', type=str, required=True, help="input image")
+    parser.add_argument('--checkpoint', type=str,
+                        default="models/ImageDehaze.pth", help="checkpint file")
+    parser.add_argument(
+        '--input', type=str, default="dataset/predict/haze/*.jpg", help="input image")
     args = parser.parse_args()
 
     model = get_model()
@@ -35,11 +37,16 @@ if __name__ == "__main__":
 
     enable_amp(model)
 
-    totensor = transforms.ToTensor()
+    # totensor = transforms.ToTensor()
+    totensor = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.64, 0.6, 0.58], std=[0.14, 0.15, 0.152])
+    ])
+
     toimage = transforms.ToPILImage()
 
     image_filenames = glob.glob(args.input)
-    progress_bar = tqdm(total = len(image_filenames))
+    progress_bar = tqdm(total=len(image_filenames))
 
     for index, filename in enumerate(image_filenames):
         progress_bar.update(1)
@@ -50,5 +57,5 @@ if __name__ == "__main__":
         with torch.no_grad():
             output_tensor = model(input_tensor).clamp(0, 1.0).squeeze()
 
-        # xxxx--modify here
-        toimage(output_tensor.cpu()).show()
+        toimage(output_tensor.cpu()).save(
+            "dataset/predict/clean/{}".format(os.path.basename(filename)))
