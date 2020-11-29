@@ -28,7 +28,6 @@ def model_load(model, path):
         print("Model '{}' does not exist.".format(path))
         return
 
-    pdb.set_trace()
     source_state_dict = torch.load(path, map_location=lambda storage, loc: storage)
     source_state_dict = source_state_dict['model']
 
